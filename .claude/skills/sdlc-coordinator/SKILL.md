@@ -25,8 +25,8 @@ Worker review, security dan QA mulai di head PR: jalankan `git fetch origin`, la
 6. Implement: worker-start --task <implTask> --worktree new-child --name agent-<KEY> --agent claude --setup run.
    Spec: plan yang disetujui + kriteria + "Ikuti AGENTS.md. Branch lokal dari Orca memakai prefix lain: push dengan `git push -u origin HEAD:agent/<KEY>-<slug>`, buka PR dengan template lewat `gh pr create --head agent/<KEY>-<slug> --body-file <file>`, cantumkan nomor PR dan head commit di worker_done. Jangan merge."
    Jangan release worker ini sebelum merge.
-7. Review: worker-start --worktree new-child --name review-<KEY>-<n> --base-branch origin/agent/<KEY>-<slug> --agent codex --setup run, skill pr-review, nomor PR dan head commit di spec. Review menjalankan test, jadi butuh `.env` dan database dari setup.
-8. Security: worker-start --worktree new-child --name sec-<KEY>-<n> --base-branch origin/agent/<KEY>-<slug> --agent codex --setup skip, skill sec-review, nomor PR dan head commit di spec.
+7. Review: worker-start --worktree new-child --name review-<KEY>-<n> --base-branch origin/agent/<KEY>-<slug> --agent claude --setup run, skill pr-review, nomor PR dan head commit di spec. Review menjalankan test, jadi butuh `.env` dan database dari setup.
+8. Security: worker-start --worktree new-child --name sec-<KEY>-<n> --base-branch origin/agent/<KEY>-<slug> --agent claude --setup skip, skill sec-review, nomor PR dan head commit di spec.
 9. Temuan blocking dari langkah 7 atau 8: tulis temuan ke .agent-out/<KEY>/fix-<n>.md, kirim ke worker implement:
    orca orchestration send --to dispatch:<implDispatch> --subject "Perbaikan <KEY> #<n>" --body-file .agent-out/<KEY>/fix-<n>.md
    Worker push ke branch yang sama dan melapor lewat worker_done. Ulangi langkah yang gagal dengan worker baru (n+1) dari head terbaru. Total maksimal 3 putaran, lalu task-update --status blocked dan eskalasi ke user.
