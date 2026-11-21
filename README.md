@@ -7,3 +7,5 @@ cp .env.example .env
 docker compose up -d --wait
 npm ci && npm test && npm run test:e2e
 ```
+
+CI smoke test for the required checks.
