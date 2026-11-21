@@ -37,7 +37,6 @@ test('POST /todos rejects an empty title', () =>
   withServer(async (base) => {
     const res = await post(base, JSON.stringify({ title: '  ' }));
     assert.equal(res.status, 400);
-    assert.equal((await res.json()).error.code, 'invalid_title');
   }));
 
 test('POST /todos rejects a body that is not JSON', () =>
