@@ -4,7 +4,7 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - run: cp .env.example .env
       - run: docker compose up -d --wait
       - run: npm ci && npm run test:e2e
