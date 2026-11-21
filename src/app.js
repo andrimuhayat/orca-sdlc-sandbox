@@ -51,7 +51,7 @@ export function createApp(store) {
       }
       if (req.method === 'GET' && url.pathname === '/me') {
         const user = await authenticate(req);
-        return user ? send(res, 200, { id: user.id, email: user.email }) : unauthorized(res);
+        return user ? send(res, 200, { id: user.id, email: user.email }, { 'cache-control': 'no-store' }) : unauthorized(res);
       }
       if (req.method === 'DELETE' && url.pathname === '/sessions/current') {
         const token = bearerToken(req);

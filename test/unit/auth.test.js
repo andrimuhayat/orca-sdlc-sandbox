@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { createHash } from 'node:crypto';
+import crypto, { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { setImmediate } from 'node:timers/promises';
 import { createApp } from '../../src/app.js';
@@ -32,14 +32,17 @@ async function send(base, method, path, { headers = [], body, split } = {}) {
   return { status: res.statusCode, headers: res.headers, text, body: text && JSON.parse(text) };
 }
 
-// AC7 shape. ADR §1 fixes the message of these two codes, and only `unauthorized` carries a Bearer challenge.
-const SAME_MESSAGE = { invalid_credentials: 'invalid email or password', unauthorized: 'a valid bearer token is required' };
+// AC7 shape with each code's exact message (ADR §1); only `unauthorized` carries a Bearer challenge.
+const MESSAGES = {
+  invalid_email: 'email must be 3 to 254 characters with exactly one @', invalid_password: 'password must be 8 to 72 characters',
+  email_taken: 'email is already registered', invalid_credentials: 'invalid email or password', not_found: 'no such route',
+  unauthorized: 'a valid bearer token is required', invalid_json: 'body must be JSON up to 10 kB',
+};
 function assertError(res, status, code, label = code) {
-  const [message, challenge] = [res.body?.error?.message, code === 'unauthorized' ? 'Bearer' : undefined];
   const { 'content-type': type, 'www-authenticate': authenticate } = res.headers;
+  const challenge = code === 'unauthorized' ? 'Bearer' : undefined;
   assert.deepEqual([res.status, type, authenticate], [status, 'application/json', challenge], label);
-  assert.deepEqual(res.body, { error: { code, message: SAME_MESSAGE[code] ?? message } }, label);
-  assert.ok(typeof message === 'string' && message.length > 0, label);
+  assert.deepEqual(res.body, { error: { code, message: MESSAGES[code] } }, label);
 }
 
 const ani = { email: 'ani@example.test', password: 'kata-sandi-ani' };
@@ -101,20 +104,22 @@ test('POST /sessions logs in with the email in another case or padding and retur
     assert.notEqual((await login(base, ani)).body.token, body.token);
   }));
 
-test('POST /sessions answers every failed login with the same 401 invalid_credentials', () =>
+test('POST /sessions answers every failed login with the same 401, after one scrypt for each pair of strings', (t) =>
   withServer(async (base) => {
     await register(base, ani);
+    const scrypt = t.mock.method(crypto, 'scrypt');
     const { email, password } = ani;
     const bodies = [{ email: 'budi@example.test', password }, { email, password: 'kata-sandi-salah' },
       { email, password: password.toUpperCase() }, { email: 'bukan-email', password }, { email, password: 'x' },
       { password }, { email }, { email: 123, password }, { email, password: null }];
     for (const body of bodies) assertError(await login(base, body), 401, 'invalid_credentials', label(body));
+    const runs = scrypt.mock.calls.map(({ arguments: [, , keylen, { N, r, p }] }) => [keylen, N, r, p]);
+    assert.deepEqual(runs, Array(5).fill([32, 16384, 8, 5])); // the first five are string pairs, two with unknown emails
   }));
 
 test('the store receives only a scrypt hash of the password and a SHA-256 hash of the token', async () => {
-  const store = memoryStore();
+  const [store, seen] = [memoryStore(), {}];
   const { createUser, createSession } = store;
-  const seen = {};
   store.createUser = (email, passwordHash) => ((seen.passwordHash = passwordHash), createUser(email, passwordHash));
   store.createSession = (userId, tokenHash) => ((seen.tokenHash = tokenHash), createSession(userId, tokenHash));
   await withServer(async (base) => {
@@ -135,6 +140,7 @@ test('GET /me (one user and token for the whole header table, as each login cost
       for (const path of ['/me', '/me?x=1']) {
         const res = await send(base, 'GET', path, { headers: authorization(`Bearer ${token}`) });
         assert.deepEqual([res.status, res.headers['content-type'], res.body], [200, 'application/json', user], path);
+        assert.equal(res.headers['cache-control'], 'no-store', path);
         assert.ok(![ani.password, 'scrypt$', sha256(token)].some((s) => res.text.includes(s)), path);
       }
     });
@@ -153,8 +159,7 @@ test('GET /me (one user and token for the whole header table, as each login cost
     });
     await t.test('leaves other methods and paths at 404 not_found', async () => {
       for (const route of ['GET /users', 'POST /me', 'GET /me/', 'GET /sessions/current', 'DELETE /sessions/123']) {
-        const [method, path] = route.split(' ');
-        assertError(await send(base, method, path, { headers: authorization(`Bearer ${token}`) }), 404, 'not_found', route);
+        assertError(await send(base, ...route.split(' '), { headers: authorization(`Bearer ${token}`) }), 404, 'not_found', route);
       }
     });
   }));

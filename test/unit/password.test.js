@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash, randomBytes, scrypt } from 'node:crypto';
+import crypto, { createHash, randomBytes, scrypt } from 'node:crypto';
 import { promisify } from 'node:util';
 import { hashPassword, verifyPassword, newToken, hashToken } from '../../src/auth.js';
 
@@ -14,10 +14,11 @@ test('hashPassword stores scrypt$16384$8$5$<salt>$<key> (83 characters) with a r
   assert.deepEqual([await verifyPassword(pw, a), await verifyPassword(pw, b)], [true, true]);
 });
 
-test('verifyPassword rejects a wrong, case-changed or empty password, and runs the dummy hash for null', async () => {
+test('verifyPassword rejects a wrong, case-changed or empty password, and runs the dummy hash for null', async (t) => {
   const stored = await hashPassword(pw);
   for (const wrong of ['kata-sandi-salah', 'KATA-SANDI-UJI', '']) assert.equal(await verifyPassword(wrong, stored), false, wrong);
-  assert.equal(await verifyPassword(pw, null), false);
+  const spy = t.mock.method(crypto, 'scrypt'); // the dummy hash is a real scrypt: an unknown email costs a wrong password's time
+  assert.deepEqual([await verifyPassword(pw, null), spy.mock.callCount()], [false, 1]);
 });
 
 test('verifyPassword reads N, r and p from the stored string', async () => {
@@ -29,6 +30,21 @@ test('verifyPassword reads N, r and p from the stored string', async () => {
 
 test('verifyPassword throws on a hash with another algorithm', () =>
   assert.rejects(verifyPassword(pw, 'bcrypt$16384$8$5$c2FsdA$a2V5')));
+
+test('verifyPassword throws on a malformed or out-of-limit stored hash, for the right password and a wrong one', async () => {
+  const [, , , , salt, key] = (await hashPassword(pw)).split('$');
+  const row = ({ n = 16384, r = 8, p = 5, s = salt, k = key }) => `scrypt$${n}$${r}$${p}$${s}$${k}`;
+  const noncanonical = (s) => s.slice(0, -1) + String.fromCharCode(s.at(-1).charCodeAt(0) + 1); // same bytes, unused low bit set
+  const [short, long] = [15, 65].map((bytes) => Buffer.alloc(bytes).toString('base64url'));
+  assert.equal(await verifyPassword(pw, row({})), true); // control: the unchanged row verifies
+  const rows = [row({ k: '' }), row({ k: '!!!!' }), row({ s: noncanonical(salt) }), row({ k: noncanonical(key) }),
+    row({ s: `${salt}==` }), row({ s: short }), row({ k: short }), `${row({})}$x`, `scrypt$16384$8$5$${salt}`, row({ n: 12345 }),
+    row({ n: 1 }), row({ n: 2 ** 17, r: 1, p: 1 }), row({ r: 17 }), row({ p: 9 }), row({ n: 2 ** 16, r: 16, p: 1 }),
+    row({ n: '+16384' }), row({ n: '016384' }), row({ r: '08' }), row({ p: '-5' }), row({ p: 0 }), row({ n: '' }), row({ k: long })];
+  for (const [password, stored] of rows.flatMap((s) => [[pw, s], ['kata-sandi-salah', s]])) {
+    await assert.rejects(verifyPassword(password, stored), { message: 'invalid password hash' }, stored);
+  }
+});
 
 test('newToken returns 32 random bytes as base64url; hashToken is SHA-256 of the string as sent', () => {
   const { token, tokenHash } = newToken();

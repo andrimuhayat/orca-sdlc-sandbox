@@ -361,3 +361,26 @@ Tidak ada file OpenAPI. Perubahan ini satu service tanpa konsumen lintas layer (
 | ADR ini (dihitung terpisah, seperti PROJ1-1) | 363 |
 
 - Muat dalam satu PR, dengan sedikit ruang. Pakai test berbasis tabel (loop atas kasus) untuk tabel di bagian 1 dan 3. Jika kode + test melewati sekitar 450 baris, rapatkan test-nya. Pecahan story tidak perlu.
+
+## Tambahan setelah review #1
+
+Bagian ini ditambahkan setelah security review #1 dan review #1 di PR #7. Isi di atasnya tidak berubah.
+
+**Parsing hash tersimpan** (melengkapi langkah 1 dan 2 verifikasi di bagian 4). Jika baris `password_hash` tidak memenuhi aturan di bawah, `verifyPassword` melempar error sebelum scrypt dijalankan, sehingga hasilnya 500 dan tidak pernah `true`. Jalur dummy (`stored === null`) tidak berubah.
+
+- Tepat 6 segmen dipisah `$`, dengan prefiks `scrypt`.
+- `N`, `r` dan `p` cocok dengan `^[1-9][0-9]*$`: desimal tanpa tanda, tanpa nol di depan, dan bukan nol. `N` harus pangkat dua yang lebih besar dari 1.
+- Batas atas: `N ≤ 2^16`, `r ≤ 16`, `p ≤ 8`, dan memori `128 · N · r ≤ 64 MiB`.
+- Salt dan key harus base64url kanonik: hasil decode lalu encode ulang harus sama persis dengan segmennya. Aturan ini menolak padding, karakter di luar alfabet, dan bit sisa yang tidak nol. Masing-masing harus 16–64 byte.
+
+Alasan batas-batas ini:
+
+- Parameter sekarang (2^14/8/5) memakai 16 MiB. Batas 64 MiB (4 kali lipat) masih menerima set OWASP 2^16/8/2 dan 2^15/8/3, tetapi menolak 2^17/8/1 (128 MiB), yang sudah ditolak di bagian 4. Dengan 4 thread libuv, pemakaian memori terburuk adalah 256 MiB.
+- Batas memori dan `p ≤ 8` bersama-sama membatasi kerja satu verifikasi pada `N · r · p ≤ 2^22`, yaitu 6,4 kali parameter sekarang. Hasil ukur di M4 (load average sekitar 9): 799 ms untuk 2^16/8/8, dibanding 107 ms untuk 2^14/8/5.
+- `N ≤ 2^16` dan `r ≤ 16` masih memberi ruang untuk menggandakan `N` dua kali dan `r` satu kali.
+- Batas 64 byte untuk salt dan key membatasi kerja PBKDF2 di awal dan akhir scrypt.
+- Key minimal 16 byte mencegah key pendek ditebak dengan brute force. Key kosong juga tidak bisa lolos lagi, padahal sebelumnya `timingSafeEqual` atas dua buffer kosong bernilai `true`, sehingga password apa pun diterima.
+- `maxmem` tetap `256 · N · r`, sehingga dengan batas ini nilainya paling besar 128 MiB.
+- Untuk menaikkan parameter melewati batas ini, ubah `MAX` di `src/auth.js` dan ADR ini bersama-sama.
+
+**`GET /me`**: respons 200 sekarang mengirim `cache-control: no-store`, seperti `POST /sessions`, karena berisi email (PII) pemilik token. Respons 401 tidak berubah.
