@@ -1,10 +1,10 @@
 ---
 name: qa-accept
-description: Acceptance test held-out dari kriteria story, lalu jalankan di branch PR
+description: Held-out acceptance tests from the story criteria, run against the PR branch
 ---
 # QA acceptance
-1. Dari kriteria di spec saja, tulis acceptance test di folder kerja sendiri (qa/<KEY>/), sebelum membaca diff.
-2. Worktree Anda dibuat dari head PR, dan setup sudah membuat `.env` serta database. Jalankan seluruh test suite dari AGENTS.md, lalu acceptance test Anda.
-3. Untuk setiap kriteria: lulus / gagal / tidak bisa diuji, dengan bukti.
-4. Tulis hasil ke qa/<KEY>/report.md, lampirkan acceptance test sebagai blok kode, posting dengan `gh pr comment <nomor> --body-file qa/<KEY>/report.md`. Jangan push.
-5. worker_done: outcome failed jika ada kriteria gagal.
+1. From the criteria in the spec only, write acceptance tests in your own folder (qa/<KEY>/) before reading the diff.
+2. Your worktree starts at the PR head, and setup already created `.env` and the database. Run the full test suite from AGENTS.md, then your acceptance tests.
+3. For each criterion: pass / fail / not testable, with evidence.
+4. Write the results to qa/<KEY>/report.md with the acceptance tests as a code block and post them with `gh pr comment <number> --body-file qa/<KEY>/report.md`. Do not push.
+5. worker_done: outcome failed if any criterion fails.

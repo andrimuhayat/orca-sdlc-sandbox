@@ -1,8 +1,8 @@
 ---
 name: po-accept
-description: Cocokkan hasil kerja dengan maksud story sebelum gate merge
+description: Match the delivered work against the story's intent before the merge gate
 ---
 # PO acceptance
-1. Baca story, kriteria, deskripsi PR, laporan review, security dan QA.
-2. Tabel per kriteria: terpenuhi / tidak / tidak jelas, dengan bukti.
-3. Catat hal yang perlu diketahui di sprint review. Keputusan akhir tetap di user.
+1. Read the story, the criteria, the PR description, and the review, security and QA reports.
+2. Table per criterion: met / not met / unclear, with evidence.
+3. Note what the sprint review should know. The final decision stays with the user.

@@ -1,9 +1,9 @@
 ---
 name: architect-design
-description: ADR dan API contract untuk story yang signifikan secara arsitektur
+description: ADR and API contract for an architecturally significant story
 ---
 # Architecture design
-1. Baca story, AGENTS.md dan docs/adr. Jangan ubah kode aplikasi.
-2. Tulis ADR (konteks, keputusan, alternatif, konsekuensi) di docs/adr/<KEY>.md; API contract (OpenAPI) jika lintas layer.
-3. Tentukan perubahan data, urutan migrasi, format error, aturan auth.
-4. worker_done dengan path ADR dan contract. Story terlalu besar: outcome failed dengan usulan pemecahan.
+1. Read the story, AGENTS.md and docs/adr. Do not change application code.
+2. Write an ADR (context, decision, alternatives, consequences) at docs/adr/<KEY>.md; an API contract (OpenAPI) if the change spans layers.
+3. Define data changes, migration order, error format and auth rules.
+4. worker_done with the ADR and contract paths. Story too large: outcome failed with a proposed split.
