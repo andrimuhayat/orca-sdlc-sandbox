@@ -1,0 +1,18 @@
+name: test-integrity
+on: pull_request
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Test tidak dihapus atau dilemahkan
+        env: { BASE_REF: "${{ github.base_ref }}" }
+        run: |
+          base=$(git merge-base "origin/$BASE_REF" HEAD)
+          paths=('tests/' '*.test.*' '*_test.*')
+          count() { git grep -cE 'assert|expect\(' "$1" -- "${paths[@]}" | awk -F: '{s+=$NF} END {print s+0}'; }
+          deleted=$(git diff --diff-filter=D --name-only "$base" HEAD -- "${paths[@]}")
+          [ -z "$deleted" ] || { echo "Test dihapus: $deleted"; exit 1; }
+          before=$(count "$base"); after=$(count HEAD)
+          [ "$after" -ge "$before" ] || { echo "Assertion turun: $before -> $after"; exit 1; }

@@ -1,0 +1,9 @@
+/tests/            @andrimuhayat
+**/*.test.*        @andrimuhayat
+**/*_test.*        @andrimuhayat
+/.claude/          @andrimuhayat
+/.agents/          @andrimuhayat
+/AGENTS.md         @andrimuhayat
+/CLAUDE.md         @andrimuhayat
+/.github/          @andrimuhayat
+/scripts/          @andrimuhayat
